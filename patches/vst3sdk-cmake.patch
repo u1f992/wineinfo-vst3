@@ -1,0 +1,57 @@
+diff --git a/modules/SMTG_AddSMTGLibrary.cmake b/modules/SMTG_AddSMTGLibrary.cmake
+index c17745d..7c5e375 100644
+--- a/modules/SMTG_AddSMTGLibrary.cmake
++++ b/modules/SMTG_AddSMTGLibrary.cmake
+@@ -159,9 +159,9 @@ function(smtg_target_add_folder_icon target icon)
+         COMMAND ${CMAKE_COMMAND} -E copy
+             ${DESKTOP_INI_PATH}
+             ${PLUGIN_PACKAGE_PATH}/desktop.ini
+-        COMMAND attrib +s ${PLUGIN_PACKAGE_PATH}/desktop.ini
+-        COMMAND attrib +s ${PLUGIN_PACKAGE_PATH}/PlugIn.ico
+-        COMMAND attrib +s ${PLUGIN_PACKAGE_PATH}
++        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} cmd /c attrib +s ${PLUGIN_PACKAGE_PATH}/desktop.ini
++        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} cmd /c attrib +s ${PLUGIN_PACKAGE_PATH}/PlugIn.ico
++        COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR} cmd /c attrib +s ${PLUGIN_PACKAGE_PATH}
+     )
+ endfunction(smtg_target_add_folder_icon)
+ 
+diff --git a/modules/SMTG_AddVST3Library.cmake b/modules/SMTG_AddVST3Library.cmake
+index 6cc4c01..baa919f 100644
+--- a/modules/SMTG_AddVST3Library.cmake
++++ b/modules/SMTG_AddVST3Library.cmake
+@@ -28,7 +28,7 @@ function(smtg_target_run_vst_validator target)
+             add_custom_command(
+                 TARGET ${target} POST_BUILD
+                 COMMAND ${CMAKE_COMMAND} -E echo [SMTG] Validator started...
+-                COMMAND 
++                COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                     $<TARGET_FILE:validator> 
+                     "${TARGET_PATH}" 
+                     WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}"
+@@ -39,7 +39,7 @@ function(smtg_target_run_vst_validator target)
+             add_custom_command(
+                 TARGET ${target} POST_BUILD
+                 COMMAND ${CMAKE_COMMAND} -E echo [SMTG] Validator started...
+-                COMMAND 
++                COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                     $<TARGET_FILE:validator> 
+                     $<$<CONFIG:Debug>:${PLUGIN_PACKAGE_PATH}>
+                     $<$<CONFIG:Release>:${PLUGIN_PACKAGE_PATH}> 
+@@ -80,7 +80,7 @@ function(smtg_target_create_module_info_file target)
+     if(DEFINED PARAMS_MODULEINFO_COMPATIBILITY)
+         add_custom_command(
+             TARGET ${target} POST_BUILD
+-            COMMAND 
++            COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                 $<TARGET_FILE:moduleinfotool> -create -version ${PROJECT_VERSION} 
+                 -path "${PLUGIN_PACKAGE_PATH}"
+                 -compat "${CMAKE_CURRENT_SOURCE_DIR}/${PARAMS_MODULEINFO_COMPATIBILITY}"
+@@ -90,7 +90,7 @@ function(smtg_target_create_module_info_file target)
+     else()
+         add_custom_command(
+             TARGET ${target} POST_BUILD
+-            COMMAND 
++            COMMAND ${CMAKE_CROSSCOMPILING_EMULATOR}
+                 $<TARGET_FILE:moduleinfotool> -create -version ${PROJECT_VERSION} 
+                 -path "${PLUGIN_PACKAGE_PATH}"
+                 -output "${PLUGIN_PACKAGE_PATH}/${SMTG_MODULEINFO_PATH_INSIDE_BUNDLE}"
