@@ -1,13 +1,17 @@
 #pragma once
 #include "public.sdk/source/common/pluginview.h"
 #include "wineinfo.h"
+#include <memory>
 #include <windows.h>
 
 namespace WineInfo {
 
-class ViewWin32 final : public Steinberg::CPluginView {
+class VulkanPresenter;
+
+class ViewVulkan final : public Steinberg::CPluginView {
 public:
-  explicit ViewWin32(InfoStrings info);
+  explicit ViewVulkan(InfoStrings info);
+  ~ViewVulkan() override;
 
   Steinberg::tresult PLUGIN_API
   isPlatformTypeSupported(Steinberg::FIDString type) override;
@@ -19,10 +23,12 @@ public:
 private:
   static LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wParam,
                                   LPARAM lParam);
-  void paint(HDC hdc) const;
+  void render();
+  void paint(HDC hdc, const RECT &client) const;
 
   InfoStrings info_;
   HWND hwnd_ = nullptr;
+  std::unique_ptr<VulkanPresenter> presenter_;
 };
 
 } // namespace WineInfo

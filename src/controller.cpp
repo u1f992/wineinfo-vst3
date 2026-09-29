@@ -1,6 +1,6 @@
 #include "controller.h"
 #include "pluginids.h"
-#include "view_win32.h"
+#include "view_vulkan.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -43,7 +43,7 @@ tresult PLUGIN_API Controller::initialize(FUnknown *context) {
 
 IPlugView *PLUGIN_API Controller::createView(FIDString name) {
   if (FIDStringsEqual(name, ViewType::kEditor))
-    return new ViewWin32(info_);
+    return new ViewVulkan(info_);
   return nullptr;
 }
 

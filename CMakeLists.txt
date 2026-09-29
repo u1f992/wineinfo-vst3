@@ -13,6 +13,14 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
+FetchContent_Declare(
+    vulkan_headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/Vulkan-Headers.git
+    GIT_TAG        v1.3.275
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(vulkan_headers)
+
 function(apply_patch_once patch working_directory)
     execute_process(
         COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${patch}
@@ -48,7 +56,7 @@ endif()
 set(VST3_SDK_ROOT "${vst3sdk_SOURCE_DIR}")
 
 # Disable VSTGUI
-# The editor is drawn directly with the Win32 API (src/view_win32.cpp).
+# The editor is presented with Vulkan (src/view_vulkan.cpp).
 set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
 
 # Disable SDK examples
@@ -64,13 +72,13 @@ set(SOURCES
   src/factory.cpp
   src/processor.cpp
   src/controller.cpp
-  src/view_win32.cpp
+  src/view_vulkan.cpp
   src/wineinfo.cpp
 )
 
 smtg_add_vst3plugin(wineinfo ${SOURCES})
 target_include_directories(wineinfo PRIVATE src ${VST3_SDK_ROOT})
-target_link_libraries(wineinfo PRIVATE sdk)
+target_link_libraries(wineinfo PRIVATE sdk Vulkan::Headers)
 
 target_compile_definitions(wineinfo PRIVATE UNICODE _UNICODE)
 
