@@ -13,22 +13,36 @@ FetchContent_Declare(
     GIT_PROGRESS   TRUE
 )
 
+function(apply_patch_once patch working_directory)
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --reverse --check ${patch}
+        WORKING_DIRECTORY ${working_directory}
+        RESULT_VARIABLE already_applied
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(already_applied EQUAL 0)
+        return()
+    endif()
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply ${patch}
+        WORKING_DIRECTORY ${working_directory}
+        RESULT_VARIABLE patch_result
+    )
+    if(NOT patch_result EQUAL 0)
+        message(FATAL_ERROR "Failed to apply ${patch}")
+    endif()
+endfunction()
+
 FetchContent_GetProperties(vst3sdk)
 if(NOT vst3sdk_POPULATED)
     FetchContent_Populate(vst3sdk)
 
     # Apply patches for cross-compiling with mingw-w64
     find_package(Git REQUIRED)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} apply ${CMAKE_SOURCE_DIR}/patches/vst3sdk-cmake.patch
-        WORKING_DIRECTORY ${vst3sdk_SOURCE_DIR}/cmake
-        RESULT_VARIABLE patch_result1
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} apply ${CMAKE_SOURCE_DIR}/patches/vst3sdk-public-sdk.patch
-        WORKING_DIRECTORY ${vst3sdk_SOURCE_DIR}/public.sdk
-        RESULT_VARIABLE patch_result2
-    )
+    apply_patch_once(${CMAKE_SOURCE_DIR}/patches/vst3sdk-cmake.patch ${vst3sdk_SOURCE_DIR}/cmake)
+    apply_patch_once(${CMAKE_SOURCE_DIR}/patches/vst3sdk-public-sdk.patch ${vst3sdk_SOURCE_DIR}/public.sdk)
 endif()
 
 set(VST3_SDK_ROOT "${vst3sdk_SOURCE_DIR}")
