@@ -4,6 +4,8 @@ A diagnostic VST3 plugin that displays Wine environment information.
 
 ![](image.png)
 
+The editor is presented with Vulkan. Under Wine it requires Wine 10.0 or later, which supports Vulkan surfaces on child windows such as plugin editors.
+
 ## Building
 
 ### Prerequisites
