@@ -1,5 +1,6 @@
 #pragma once
 #include "public.sdk/source/vst/vsteditcontroller.h"
+#include "wineinfo.h"
 
 namespace WineInfo {
 
@@ -14,6 +15,9 @@ public:
   initialize(Steinberg::FUnknown *context) override;
   Steinberg::IPlugView *PLUGIN_API
   createView(Steinberg::FIDString name) override;
+
+private:
+  InfoStrings info_;
 };
 
 } // namespace WineInfo

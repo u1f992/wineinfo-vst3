@@ -1,6 +1,6 @@
 #include "controller.h"
 #include "pluginids.h"
-#include "wineinfo.h"
+#include "view_win32.h"
 
 using namespace Steinberg;
 using namespace Steinberg::Vst;
@@ -28,20 +28,22 @@ tresult PLUGIN_API Controller::initialize(FUnknown *context) {
   if (r != kResultOk)
     return r;
 
-  auto info = get_info_strings();
+  info_ = get_info_strings();
 
-  addInfoParam(parameters, kParamVersion, L"Wine version: ", info.version);
-  addInfoParam(parameters, kParamBuildId, L"Wine build-id: ", info.build_id);
+  addInfoParam(parameters, kParamVersion, L"Wine version: ", info_.version);
+  addInfoParam(parameters, kParamBuildId, L"Wine build-id: ", info_.build_id);
   addInfoParam(parameters, kParamProcSelfExe, L"/proc/self/exe: ",
-               info.proc_self_exe);
-  addInfoParam(parameters, kParamWineloader, L"WINELOADER: ", info.wineloader);
-  addInfoParam(parameters, kParamWineprefix, L"WINEPREFIX: ", info.wineprefix);
-  addInfoParam(parameters, kParamWineserver, L"WINESERVER: ", info.wineserver);
+               info_.proc_self_exe);
+  addInfoParam(parameters, kParamWineloader, L"WINELOADER: ", info_.wineloader);
+  addInfoParam(parameters, kParamWineprefix, L"WINEPREFIX: ", info_.wineprefix);
+  addInfoParam(parameters, kParamWineserver, L"WINESERVER: ", info_.wineserver);
 
   return kResultOk;
 }
 
-IPlugView *PLUGIN_API Controller::createView(FIDString /*name*/) {
+IPlugView *PLUGIN_API Controller::createView(FIDString name) {
+  if (FIDStringsEqual(name, ViewType::kEditor))
+    return new ViewWin32(info_);
   return nullptr;
 }
 

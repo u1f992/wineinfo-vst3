@@ -48,7 +48,7 @@ endif()
 set(VST3_SDK_ROOT "${vst3sdk_SOURCE_DIR}")
 
 # Disable VSTGUI
-# This plugin only displays static text, so we use DAW's generic parameter UI instead.
+# The editor is drawn directly with the Win32 API (src/view_win32.cpp).
 set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
 
 # Disable SDK examples
@@ -64,6 +64,7 @@ set(SOURCES
   src/factory.cpp
   src/processor.cpp
   src/controller.cpp
+  src/view_win32.cpp
   src/wineinfo.cpp
 )
 

@@ -1,55 +1,50 @@
 #include "view_win32.h"
+#include <algorithm>
 #include <cstring>
-#include <windowsx.h>
+#include <utility>
 
 using namespace Steinberg;
 
 namespace WineInfo {
 
-ViewWin32::ViewWin32(std::wstring text) : text_(std::move(text)) {}
-ViewWin32::~ViewWin32() { removed(); }
+static constexpr wchar_t kWindowClassName[] = L"WineInfoVST3View";
+static const ViewRect kInitialRect{0, 0, 560, 150};
 
-tresult PLUGIN_API ViewWin32::queryInterface(const TUID _iid, void **obj) {
-  QUERY_INTERFACE(_iid, obj, FUnknown::iid, IPlugView)
-  QUERY_INTERFACE(_iid, obj, IPlugView::iid, IPlugView)
-  *obj = nullptr;
-  return kNoInterface;
+static HINSTANCE thisModule() {
+  HMODULE module = nullptr;
+  GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                         GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                     reinterpret_cast<LPCWSTR>(&thisModule), &module);
+  return module;
 }
+
+ViewWin32::ViewWin32(InfoStrings info)
+    : CPluginView(&kInitialRect), info_(std::move(info)) {}
 
 tresult PLUGIN_API ViewWin32::isPlatformTypeSupported(FIDString type) {
   return (type && std::strcmp(type, kPlatformTypeHWND) == 0) ? kResultTrue
                                                              : kResultFalse;
 }
 
-static ATOM ensure_class() {
-  static ATOM a = 0;
-  if (a)
-    return a;
+tresult PLUGIN_API ViewWin32::attached(void *parent, FIDString type) {
+  if (!parent || isPlatformTypeSupported(type) != kResultTrue)
+    return kResultFalse;
 
   WNDCLASSEXW wc{};
   wc.cbSize = sizeof(wc);
-  wc.lpfnWndProc = ViewWin32::WndProc;
-  wc.hInstance = GetModuleHandleW(nullptr);
-  wc.lpszClassName = L"WineInfoVST3View";
-  wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-  wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-  a = RegisterClassExW(&wc);
-  return a;
-}
+  wc.lpfnWndProc = wndProc;
+  wc.hInstance = thisModule();
+  wc.lpszClassName = kWindowClassName;
+  wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+  wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+  RegisterClassExW(&wc);
 
-tresult PLUGIN_API ViewWin32::attached(void *parent, FIDString type) {
-  if (isPlatformTypeSupported(type) != kResultTrue)
+  hwnd_ = CreateWindowExW(
+      0, kWindowClassName, L"", WS_CHILD | WS_VISIBLE, 0, 0, rect.getWidth(),
+      rect.getHeight(), static_cast<HWND>(parent), nullptr, thisModule(), this);
+  if (!hwnd_)
     return kResultFalse;
-  if (!parent)
-    return kResultFalse;
-
-  ensure_class();
-
-  HWND host = (HWND)parent;
-  hwnd_ = CreateWindowExW(0, L"WineInfoVST3View", L"", WS_CHILD | WS_VISIBLE, 0,
-                          0, rect_.right - rect_.left, rect_.bottom - rect_.top,
-                          host, nullptr, GetModuleHandleW(nullptr), this);
-  return hwnd_ ? kResultOk : kResultFalse;
+  return CPluginView::attached(parent, type);
 }
 
 tresult PLUGIN_API ViewWin32::removed() {
@@ -57,54 +52,84 @@ tresult PLUGIN_API ViewWin32::removed() {
     DestroyWindow(hwnd_);
     hwnd_ = nullptr;
   }
-  return kResultOk;
-}
-
-tresult PLUGIN_API ViewWin32::getSize(ViewRect *size) {
-  if (!size)
-    return kResultFalse;
-  *size = rect_;
-  return kResultOk;
+  // Classes registered by a DLL outlive its unloading, which would leave the
+  // class pointing at a stale wndProc. This fails harmlessly while another
+  // instance still has a window of this class.
+  UnregisterClassW(kWindowClassName, thisModule());
+  return CPluginView::removed();
 }
 
 tresult PLUGIN_API ViewWin32::onSize(ViewRect *newSize) {
-  if (!newSize)
-    return kResultFalse;
-  rect_ = *newSize;
-  if (hwnd_) {
-    SetWindowPos(hwnd_, nullptr, 0, 0, rect_.right - rect_.left,
-                 rect_.bottom - rect_.top, SWP_NOZORDER | SWP_NOMOVE);
-    InvalidateRect(hwnd_, nullptr, TRUE);
-  }
-  return kResultOk;
+  tresult result = CPluginView::onSize(newSize);
+  if (result == kResultTrue && hwnd_)
+    SetWindowPos(hwnd_, nullptr, 0, 0, rect.getWidth(), rect.getHeight(),
+                 SWP_NOZORDER | SWP_NOMOVE);
+  return result;
 }
 
-LRESULT CALLBACK ViewWin32::WndProc(HWND hwnd, UINT msg, WPARAM w, LPARAM l) {
-  ViewWin32 *self = (ViewWin32 *)GetWindowLongPtrW(hwnd, GWLP_USERDATA);
-
+LRESULT CALLBACK ViewWin32::wndProc(HWND hwnd, UINT msg, WPARAM wParam,
+                                    LPARAM lParam) {
   if (msg == WM_NCCREATE) {
-    auto *cs = (CREATESTRUCTW *)l;
-    self = (ViewWin32 *)cs->lpCreateParams;
-    SetWindowLongPtrW(hwnd, GWLP_USERDATA, (LONG_PTR)self);
-    return DefWindowProcW(hwnd, msg, w, l);
+    auto *cs = reinterpret_cast<CREATESTRUCTW *>(lParam);
+    SetWindowLongPtrW(hwnd, GWLP_USERDATA,
+                      reinterpret_cast<LONG_PTR>(cs->lpCreateParams));
   }
 
-  switch (msg) {
-  case WM_PAINT: {
+  auto *self =
+      reinterpret_cast<ViewWin32 *>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+  if (msg == WM_PAINT && self) {
     PAINTSTRUCT ps{};
     HDC hdc = BeginPaint(hwnd, &ps);
-    RECT r{};
-    GetClientRect(hwnd, &r);
-
-    SetBkMode(hdc, TRANSPARENT);
-    DrawTextW(hdc, self ? self->text_.c_str() : L"", -1, &r,
-              DT_LEFT | DT_TOP | DT_WORDBREAK);
+    self->paint(hdc);
     EndPaint(hwnd, &ps);
     return 0;
   }
-  default:
-    return DefWindowProcW(hwnd, msg, w, l);
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
+void ViewWin32::paint(HDC hdc) const {
+  const std::pair<const wchar_t *, const std::wstring *> rows[] = {
+      {L"Wine version", &info_.version},
+      {L"Wine build-id", &info_.build_id},
+      {L"/proc/self/exe", &info_.proc_self_exe},
+      {L"WINELOADER", &info_.wineloader},
+      {L"WINEPREFIX", &info_.wineprefix},
+      {L"WINESERVER", &info_.wineserver},
+  };
+
+  HGDIOBJ previousFont = SelectObject(hdc, GetStockObject(DEFAULT_GUI_FONT));
+  SetBkMode(hdc, TRANSPARENT);
+
+  TEXTMETRICW tm{};
+  GetTextMetricsW(hdc, &tm);
+  LONG labelWidth = 0;
+  for (const auto &[label, value] : rows) {
+    SIZE extent{};
+    GetTextExtentPoint32W(hdc, label, lstrlenW(label), &extent);
+    labelWidth = std::max(labelWidth, extent.cx);
   }
+
+  RECT client{};
+  GetClientRect(hwnd_, &client);
+  constexpr LONG margin = 12;
+  const LONG rowHeight = tm.tmHeight + tm.tmExternalLeading + 6;
+  const UINT format = DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX;
+
+  LONG y = margin;
+  for (const auto &[label, value] : rows) {
+    RECT labelRect{margin, y, margin + labelWidth, y + rowHeight};
+    SetTextColor(hdc, GetSysColor(COLOR_GRAYTEXT));
+    DrawTextW(hdc, label, -1, &labelRect, format);
+
+    RECT valueRect{labelRect.right + margin, y, client.right - margin,
+                   y + rowHeight};
+    SetTextColor(hdc, GetSysColor(COLOR_WINDOWTEXT));
+    DrawTextW(hdc, value->c_str(), -1, &valueRect, format | DT_PATH_ELLIPSIS);
+
+    y += rowHeight;
+  }
+
+  SelectObject(hdc, previousFont);
 }
 
 } // namespace WineInfo
