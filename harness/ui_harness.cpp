@@ -115,13 +115,19 @@ std::vector<DWORD> capturePixels(HWND window, SIZE size) {
   bi.bmiHeader.biBitCount = 32;
   bi.bmiHeader.biCompression = BI_RGB;
 
-  HDC windowDC = GetDC(window);
-  HDC memoryDC = CreateCompatibleDC(windowDC);
+  // Wine 10 copies Vulkan presentations of child windows straight to the X
+  // window of the top-level window, bypassing the child's DC, so read back
+  // what is on screen instead.
+  POINT origin{0, 0};
+  ClientToScreen(window, &origin);
+  HDC screenDC = GetDC(nullptr);
+  HDC memoryDC = CreateCompatibleDC(screenDC);
   void *bits = nullptr;
   HBITMAP bitmap =
-      CreateDIBSection(windowDC, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
+      CreateDIBSection(screenDC, &bi, DIB_RGB_COLORS, &bits, nullptr, 0);
   HGDIOBJ previous = SelectObject(memoryDC, bitmap);
-  BitBlt(memoryDC, 0, 0, size.cx, size.cy, windowDC, 0, 0, SRCCOPY);
+  BitBlt(memoryDC, 0, 0, size.cx, size.cy, screenDC, origin.x, origin.y,
+         SRCCOPY);
   SelectObject(memoryDC, previous);
 
   const auto *first = static_cast<const DWORD *>(bits);
@@ -129,7 +135,7 @@ std::vector<DWORD> capturePixels(HWND window, SIZE size) {
 
   DeleteObject(bitmap);
   DeleteDC(memoryDC);
-  ReleaseDC(window, windowDC);
+  ReleaseDC(nullptr, screenDC);
   return pixels;
 }
 
