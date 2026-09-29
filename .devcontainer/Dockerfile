@@ -9,4 +9,6 @@ RUN dpkg --add-architecture i386 && \
     mingw-w64=11.0.1-3build1 \
     ninja-build=1.11.1-2 \
     wine=9.0~repack-4build3 \
+    xauth=1:1.1.2-1build1 \
+    xvfb=2:21.1.12-1ubuntu1.8 \
     && rm -rf /var/lib/apt/lists/*

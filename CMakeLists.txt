@@ -87,3 +87,15 @@ if(SMTG_WIN AND SMTG_CREATE_BUNDLE_FOR_WINDOWS AND NOT CMAKE_CONFIGURATION_TYPES
 endif()
 
 smtg_target_configure_version_file(wineinfo)
+
+add_executable(ui_harness
+  harness/ui_harness.cpp
+  ${VST3_SDK_ROOT}/public.sdk/source/vst/hosting/module_win32.cpp
+  ${VST3_SDK_ROOT}/public.sdk/source/vst/hosting/plugprovider.cpp
+)
+target_link_libraries(ui_harness PRIVATE sdk_hosting)
+
+enable_testing()
+add_test(NAME ui_harness
+  COMMAND ui_harness --screenshot ${CMAKE_BINARY_DIR}/ui_harness.bmp $<TARGET_FILE:wineinfo>
+)
