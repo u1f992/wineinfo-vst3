@@ -48,7 +48,7 @@ endif()
 set(VST3_SDK_ROOT "${vst3sdk_SOURCE_DIR}")
 
 # Disable VSTGUI
-# The editor is drawn directly with the Win32 API (src/view_win32.cpp).
+# The editor is drawn with Direct3D 11 and Direct2D (src/view_d3d11.cpp).
 set(SMTG_ENABLE_VSTGUI_SUPPORT OFF CACHE BOOL "" FORCE)
 
 # Disable SDK examples
@@ -64,13 +64,13 @@ set(SOURCES
   src/factory.cpp
   src/processor.cpp
   src/controller.cpp
-  src/view_win32.cpp
+  src/view_d3d11.cpp
   src/wineinfo.cpp
 )
 
 smtg_add_vst3plugin(wineinfo ${SOURCES})
 target_include_directories(wineinfo PRIVATE src ${VST3_SDK_ROOT})
-target_link_libraries(wineinfo PRIVATE sdk)
+target_link_libraries(wineinfo PRIVATE sdk d3d11 d2d1 dwrite)
 
 target_compile_definitions(wineinfo PRIVATE UNICODE _UNICODE)
 
