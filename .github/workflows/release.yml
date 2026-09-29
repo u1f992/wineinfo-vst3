@@ -17,8 +17,15 @@ jobs:
       - uses: devcontainers/ci@v0.3
         with:
           runCmd: |
+            set -e
             cmake --preset mingw-w64-x86_64
-            cmake --build build --target wineinfo
+            cmake --build build --target wineinfo ui_harness
+            xvfb-run -a ctest --test-dir build --output-on-failure
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ui-harness-screenshot
+          path: build/ui_harness.bmp
       - run: |
           cd build/VST3/Release
           zip -r ../../../wineinfo-${VERSION}.zip wineinfo.vst3
